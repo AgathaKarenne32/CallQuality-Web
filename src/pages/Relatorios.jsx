@@ -1,39 +1,54 @@
 import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { FileText, Star } from 'lucide-react';
+import { GraficoEvolucao } from '../components/GraficoEvolucao'; // Importamos
 
 export function Relatorios() {
   const [avaliacoes, setAvaliacoes] = useState([]);
-  const [loading, setLoading] = useState(true); // Novo estado para controle de load real
+  const [dadosGrafico, setDadosGrafico] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api.get('/avaliacoes')
       .then(res => {
         setAvaliacoes(res.data);
+        
+        // Prepara dados para o gráfico: Pega as últimas 10 avaliações
+        const ultimas = res.data.slice(-10); 
+        const dadosFormatados = ultimas.map((av, index) => ({
+            nome: 'Ch. ' + av.ligacao.id, // Ex: "Ch. 12"
+            nota: av.notaFinal
+        }));
+        setDadosGrafico(dadosFormatados);
+        
         setLoading(false);
       })
       .catch(err => {
-        console.error("Erro ao buscar avaliações", err);
+        console.error("Erro:", err);
         setLoading(false);
       });
   }, []);
 
-  if (loading) {
-    return <div className="p-8 text-center text-slate-500">⏳ Buscando relatórios no sistema...</div>;
-  }
+  if (loading) return <div className="p-8 text-center text-slate-500">⏳ Buscando dados...</div>;
 
   return (
-    <div className="p-8">
+    <div className="p-8 animate-fade-in">
       <header className="mb-8">
         <h2 className="text-2xl font-bold text-slate-800">Relatórios de Qualidade</h2>
         <p className="text-secondary">Auditoria detalhada das notas atribuídas pela IA.</p>
       </header>
 
+      {/* GRÁFICO DE TENDÊNCIA AQUI */}
+      {dadosGrafico.length > 0 && (
+        <div className="mb-8">
+            <GraficoEvolucao dados={dadosGrafico} />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4">
         {avaliacoes.length === 0 ? (
             <div className="bg-white p-8 rounded-xl border border-slate-200 text-center">
-                <p className="text-slate-400">Nenhum relatório de avaliação encontrado.</p>
-                <p className="text-sm text-slate-300 mt-2">Faça o upload de uma nova ligação para gerar avaliações.</p>
+                <p className="text-slate-400">Nenhum relatório encontrado.</p>
             </div>
         ) : avaliacoes.map(aval => (
             <div key={aval.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
