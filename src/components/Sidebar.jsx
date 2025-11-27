@@ -17,10 +17,15 @@ export function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-slate-100">
-        <button className="flex items-center gap-3 text-secondary hover:text-primary transition w-full px-4 py-2">
+        {/* Agora é um NavLink também! */}
+        <NavLink 
+          to="/configuracoes"
+          className={({ isActive }) => `flex items-center gap-3 text-secondary hover:text-primary transition w-full px-4 py-2 rounded-lg
+          ${isActive ? 'bg-blue-50 text-primary font-medium' : ''}`}
+        >
           <Settings size={20} />
           <span className="text-sm font-medium">Configurações</span>
-        </button>
+        </NavLink>
       </div>
     </aside>
   );

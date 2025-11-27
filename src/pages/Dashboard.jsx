@@ -12,8 +12,13 @@ export function Dashboard() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chamadaSelecionada, setChamadaSelecionada] = useState(null);
 
-  // Estados de Dados
-  const [kpis, setKpis] = useState({ totalLigacoes: 0, mediaNota: 0, alertasCriticos: 0 });
+  // Estados dos KPIs (Agora com labels dinâmicas)
+  const [kpis, setKpis] = useState({
+    total: { valor: 0, subtexto: 'Carregando...' },
+    media: { valor: '0.0', subtexto: 'Aguardando dados...' },
+    alertas: { valor: 0, subtexto: '0% do total' }
+  });
+
   const [dadosGrafico, setDadosGrafico] = useState([]);
 
   const carregarDados = async () => {
@@ -21,30 +26,44 @@ export function Dashboard() {
       // 1. Busca Ligações
       const resLigacoes = await api.get('/ligacoes');
       const lista = resLigacoes.data;
-
-      // KPI: Totais
       const total = lista.length;
-      const criticos = lista.filter(l => l.sentimento === 'NEGATIVO').length;
-
-      // CÁLCULO PARA O GRÁFICO (Dinâmico)
+      
+      // Cálculo de Sentimentos
       const positivos = lista.filter(l => l.sentimento === 'POSITIVO').length;
       const neutros = lista.filter(l => l.sentimento === 'NEUTRO').length;
-      const negativos = lista.filter(l => l.sentimento === 'NEGATIVO').length; // ou Misto
+      const negativos = lista.filter(l => l.sentimento === 'NEGATIVO').length;
 
+      // KPI de Alertas (Cálculo de Porcentagem)
+      const percNegativos = total > 0 ? ((negativos / total) * 100).toFixed(1) : 0;
+
+      // Dados para o Gráfico
       setDadosGrafico([
-        { name: 'Positivo', value: positivos, color: '#22c55e' }, // Verde
-        { name: 'Neutro', value: neutros, color: '#94a3b8' },    // Cinza
-        { name: 'Crítico', value: negativos, color: '#ef4444' }, // Vermelho
+        { name: 'Positivo', value: positivos, color: '#22c55e' },
+        { name: 'Neutro', value: neutros, color: '#94a3b8' }, 
+        { name: 'Crítico', value: negativos, color: '#ef4444' },
       ]);
 
-      // 2. Busca Avaliações (Para média)
+      // 2. Busca Avaliações (Média)
       const resAvaliacoes = await api.get('/avaliacoes');
-      const totalNotas = resAvaliacoes.data.reduce((acc, curr) => acc + (curr.notaFinal || 0), 0);
-      const media = resAvaliacoes.data.length > 0
-        ? (totalNotas / resAvaliacoes.data.length).toFixed(1)
-        : '0.0';
+      const totalAvaliacoes = resAvaliacoes.data.length;
+      const somaNotas = resAvaliacoes.data.reduce((acc, curr) => acc + (curr.notaFinal || 0), 0);
+      const media = totalAvaliacoes > 0 ? (somaNotas / totalAvaliacoes).toFixed(1) : '0.0';
 
-      setKpis({ totalLigacoes: total, mediaNota: media, alertasCriticos: criticos });
+      // Atualiza os KPIs com Matemática Real
+      setKpis({
+        total: { 
+            valor: total, 
+            subtexto: 'Total acumulado' 
+        },
+        media: { 
+            valor: media, 
+            subtexto: `Baseado em ${totalAvaliacoes} avaliações` 
+        },
+        alertas: { 
+            valor: negativos, 
+            subtexto: `${percNegativos}% das chamadas` 
+        }
+      });
 
     } catch (error) { console.error("Erro ao carregar dashboard:", error); }
   };
@@ -67,7 +86,7 @@ export function Dashboard() {
           <h2 className="text-2xl font-bold text-slate-800">Visão Geral</h2>
           <p className="text-secondary">Acompanhe a qualidade do atendimento em tempo real.</p>
         </div>
-        <button
+        <button 
           onClick={() => setIsModalOpen(true)}
           className="bg-primary text-white px-5 py-2.5 rounded-lg font-medium shadow-sm hover:bg-blue-700 transition flex items-center gap-2"
         >
@@ -75,21 +94,37 @@ export function Dashboard() {
         </button>
       </header>
 
-      {/* KPIs Responsivos */}
+      {/* Grid de KPIs DINÂMICOS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <KpiCard title="Total de Ligações" value={kpis.totalLigacoes} change="Registradas" icon={<PhoneCall size={24} className="text-blue-600" />} color="bg-blue-50" />
-        <KpiCard title="Nota Média (IA)" value={kpis.mediaNota} change="Geral" icon={<TrendingUp size={24} className="text-green-600" />} color="bg-green-50" />
-        <KpiCard title="Alertas Críticos" value={kpis.alertasCriticos} change="Negativos" icon={<AlertCircle size={24} className="text-red-600" />} color="bg-red-50" />
+        <KpiCard 
+            title="Total de Ligações" 
+            value={kpis.total.valor} 
+            change={kpis.total.subtexto} 
+            icon={<PhoneCall size={24} className="text-blue-600"/>} 
+            color="bg-blue-50" 
+        />
+        <KpiCard 
+            title="Nota Média (IA)" 
+            value={kpis.media.valor} 
+            change={kpis.media.subtexto} 
+            icon={<TrendingUp size={24} className="text-green-600"/>} 
+            color="bg-green-50" 
+        />
+        <KpiCard 
+            title="Alertas Críticos" 
+            value={kpis.alertas.valor} 
+            change={kpis.alertas.subtexto} 
+            icon={<AlertCircle size={24} className="text-red-600"/>} 
+            color="bg-red-50" 
+        />
       </div>
 
-      {/* Grid Principal Responsivo */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 h-full">
-          {/* Passamos os dados calculados para o gráfico */}
-          <GraficoSentimentos dados={dadosGrafico} />
+            <GraficoSentimentos dados={dadosGrafico} />
         </div>
         <div className="lg:col-span-2">
-          <TabelaLigacoes key={refreshKey} onVisualizar={handleAbrirDetalhes} />
+            <TabelaLigacoes key={refreshKey} onVisualizar={handleAbrirDetalhes} />
         </div>
       </div>
 
